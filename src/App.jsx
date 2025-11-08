@@ -1,11 +1,15 @@
 import { useMemo, useState } from 'react';
-import Header from './components/Header';
-import Metrics from './components/Metrics';
-import AssetForm from './components/AssetForm';
-import WorkOrderList from './components/WorkOrderList';
+import Topbar from './components/Topbar';
+import Dashboard from './components/Dashboard';
+import MasterData from './components/MasterData';
+import EmergencyForm from './components/EmergencyForm';
+import PMModule from './components/PMModule';
+import Reports from './components/Reports';
 
 function App() {
-  const [assets, setAssets] = useState([]);
+  const [active, setActive] = useState('dashboard');
+
+  // Demo data for dashboard widgets
   const [orders, setOrders] = useState([
     {
       id: 'wo-1',
@@ -18,61 +22,50 @@ function App() {
     },
   ]);
 
+  // Emergency maintenance logs for reports
+  const [emergencyLogs, setEmergencyLogs] = useState([]);
+
   const totals = useMemo(() => {
     const openOrders = orders.filter((o) => o.status !== 'done').length;
     const overdue = orders.filter((o) => o.status !== 'done' && Math.random() < 0.2).length; // mock
-    const completedThisMonth = orders.filter((o) => o.status === 'done' && new Date(o.completedAt || Date.now()).getMonth() === new Date().getMonth()).length;
-    return { assets: assets.length, openOrders, overdue, completedThisMonth };
-  }, [assets.length, orders]);
-
-  const handleAddAsset = (asset) => {
-    setAssets((prev) => [asset, ...prev]);
-    // Also create a sample work order for the new asset
-    setOrders((prev) => [
-      {
-        id: crypto.randomUUID(),
-        title: `بازرسی اولیه - ${asset.name}`,
-        description: 'بازرسی عمومی، ثبت مشخصات و اطمینان از آماده‌به‌کاری.',
-        status: 'in_progress',
-        priority: asset.criticality === 'high' ? 'بالا' : asset.criticality === 'low' ? 'پایین' : 'متوسط',
-        assetName: asset.name,
-        createdAt: new Date().toISOString(),
-      },
-      ...prev,
-    ]);
-  };
+    const completedThisMonth = orders.filter(
+      (o) => o.status === 'done' && new Date(o.completedAt || Date.now()).getMonth() === new Date().getMonth()
+    ).length;
+    return { assets: 0, openOrders, overdue, completedThisMonth };
+  }, [orders]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
-      <Header />
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6">
-        <Metrics totals={totals} />
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
-            <AssetForm onAdd={handleAddAsset} />
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50" dir="rtl">
+      <Topbar active={active} onSelect={setActive} />
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 text-right">
+        {active === 'dashboard' && <Dashboard totals={totals} orders={orders} />}
+        {active === 'master' && <MasterData />}
+        {active === 'emergency' && (
+          <div className="space-y-6">
+            <EmergencyForm onAdd={(row) => setEmergencyLogs((prev) => [row, ...prev])} />
+            <div className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">سوابق ثبت‌شده</h3>
+              {emergencyLogs.length === 0 ? (
+                <p className="text-gray-600">موردی ثبت نشده است.</p>
+              ) : (
+                <ul className="divide-y">
+                  {emergencyLogs.map((e) => (
+                    <li key={e.id} className="py-3 text-sm">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium">برگه #{e.sheetNo}</span>
+                        <span className="text-gray-500">{e.date}</span>
+                      </div>
+                      <div className="text-gray-700 mt-1">{e.asset} — {e.description}</div>
+                      <div className="text-gray-500 mt-1">مدت: {e.durationMin} دقیقه | نفرات: {e.workers} | شیفت: {e.shift}</div>
+                    </li>
+                  ))}
+                </ul>
+              )}
+            </div>
           </div>
-          <div className="lg:col-span-2">
-            <WorkOrderList orders={orders} />
-          </div>
-        </div>
-        <section className="bg-white rounded-xl border border-gray-200 p-4 sm:p-6 shadow-sm">
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">دارایی‌های اخیر</h3>
-          {assets.length === 0 ? (
-            <p className="text-gray-600">هنوز دارایی‌ای ثبت نشده است.</p>
-          ) : (
-            <ul className="divide-y">
-              {assets.map((a) => (
-                <li key={a.id} className="py-3 flex items-center justify-between">
-                  <div className="min-w-0">
-                    <p className="font-medium text-gray-900 truncate">{a.name} <span className="text-gray-500">({a.code})</span></p>
-                    <p className="text-sm text-gray-600">مکان: {a.location || '—'} | اهمیت: {a.criticality}</p>
-                  </div>
-                  <span className="text-xs text-gray-500">{new Date(a.createdAt).toLocaleString()}</span>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        )}
+        {active === 'pm' && <PMModule />}
+        {active === 'reports' && <Reports emergencyLogs={emergencyLogs} pmDone={[]} />}
       </main>
     </div>
   );
